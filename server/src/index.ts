@@ -1,5 +1,5 @@
 import express from 'express';
-import { appointments, assignTask, blocks, containerDetail, containers, createContainer, createGateAppointment, createYardTask, dashboard, deleteContainer, deleteGateAppointment, deleteYardTask, editGateAppointment, equipment, gateConflicts, prioritizeTasks, tasks, updateContainer, updateYardTask, voyages, yardHeatmap } from './domain.js';
+import { appointments, assignTask, blocks, containerDetail, containers, createContainer, createGateAppointment, createYardTask, dashboard, deleteContainer, deleteGateAppointment, deleteYardTask, editGateAppointment, equipment, gateConflicts, inspectionFlowDetail, inspectionFlowList, overrideFlowState, prioritizeTasks, receiveCustomsMessage, repairEquipment, reportEquipmentFault, startInspectionFlow, tasks, transitionFlow, updateContainer, updateYardTask, voyages, yardHeatmap } from './domain.js';
 const app = express(); app.use(express.json());
 app.get('/api/dashboard', (_req, res) => res.json(dashboard()));
 app.get('/api/voyages', (_req, res) => res.json(voyages));
@@ -21,5 +21,13 @@ app.post('/api/tasks', (req, res) => { try { res.status(201).json(createYardTask
 app.patch('/api/tasks/:id', (req, res) => { try { const result = updateYardTask(req.params.id, req.body); if (!result) return res.status(404).json({ message: '作业任务不存在' }); res.json(result); } catch (error) { res.status(409).json({ message: error instanceof Error ? error.message : '更新作业任务失败' }); } });
 app.delete('/api/tasks/:id', (req, res) => { const result = deleteYardTask(req.params.id); if (!result) return res.status(404).json({ message: '作业任务不存在' }); res.json({ deleted: true, id: result.id }); });
 app.patch('/api/tasks/:id/assign', (req, res) => { const result = assignTask(req.params.id, req.body.equipmentId); if (!result) return res.status(404).json({ message: '任务或设备不存在' }); res.json(result); });
+app.get('/api/inspection/flows', (_req, res) => res.json(inspectionFlowList()));
+app.get('/api/inspection/flows/:id', (req, res) => { const result = inspectionFlowDetail(req.params.id); if (!result) return res.status(404).json({ message: '查验流程不存在' }); res.json(result); });
+app.post('/api/inspection/flows', (req, res) => { try { res.status(201).json(startInspectionFlow(req.body)); } catch (error) { res.status(409).json({ message: error instanceof Error ? error.message : '发起查验流程失败' }); } });
+app.post('/api/inspection/flows/:id/transitions', (req, res) => { try { res.json(transitionFlow(req.params.id, req.body)); } catch (error) { res.status(409).json({ message: error instanceof Error ? error.message : '流程动作失败' }); } });
+app.post('/api/inspection/flows/:id/override', (req, res) => { try { res.json(overrideFlowState(req.params.id, req.body)); } catch (error) { res.status(409).json({ message: error instanceof Error ? error.message : '人工覆盖失败' }); } });
+app.post('/api/containers/:id/customs-message', (req, res) => { try { const result = receiveCustomsMessage(req.params.id, { decision: req.body?.decision, messageId: req.body?.messageId, reason: req.body?.reason }); res.json(result); } catch (error) { res.status(409).json({ message: error instanceof Error ? error.message : '海关消息处理失败' }); } });
+app.patch('/api/equipment/:id/fault', (req, res) => { try { res.json(reportEquipmentFault(req.params.id, typeof req.body?.reason === 'string' ? req.body.reason : '')); } catch (error) { res.status(409).json({ message: error instanceof Error ? error.message : '故障上报失败' }); } });
+app.patch('/api/equipment/:id/repair', (req, res) => { try { res.json(repairEquipment(req.params.id)); } catch (error) { res.status(409).json({ message: error instanceof Error ? error.message : '设备修复失败' }); } });
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'port-yard-operations' }));
 const port = Number(process.env.PORT || 4107); app.listen(port, () => console.log(`port yard API listening on ${port}`));
